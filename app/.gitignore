@@ -1,0 +1,4 @@
+.build/
+build/
+Vendor/*.tar.xz
+Vendor/VLCKit.xcframework/
