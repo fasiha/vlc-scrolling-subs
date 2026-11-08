@@ -1,7 +1,7 @@
 # karaoke
 
 Audio/video (+ optional YouTube auto-VTT) -> LLM-corrected, word-timed subtitles:
-`subs.json` (schema below, consumed by `../app`), `subs.ass` (`\kf` karaoke), `subs.srt`.
+`subs.json` (schema below, consumed by `../app`), `subs.vtt` (YouTube-style inline word timestamps, also read by the app), `subs.ass` (`\kf` karaoke), `subs.srt`.
 
 Requires: `python` with `stable-ts`, `ffmpeg`, and the `claude` CLI (`claude -p`).
 
@@ -25,7 +25,7 @@ Each stage is also a subcommand sharing the workdir (`extract vtt context transc
 | transcribe | asr.json | stable-ts transcribe with `initial_prompt` = context + keywords |
 | diff | diffs.json, final.json | word diff corrected vs Whisper; `--adjudicate` lets the LLM pick A/B/unsure per diff and applies B picks |
 | align | aligned.json | stable-ts `model.align` of final text; words mapped back onto the LLM's lines |
-| export | subs.json/.ass/.srt | times shifted by `--ss` back to source-media time (`--clip-relative` to opt out; pass the same `--ss` when running export alone); long lines split (<=42 chars, prefer punctuation); monotonic times |
+| export | subs.json/.vtt/.ass/.srt | times shifted by `--ss` back to source-media time (`--clip-relative` to opt out; pass the same `--ss` when running export alone); long lines split (<=42 chars, prefer punctuation); monotonic times |
 
 Without `--vtt`, `all` runs transcribe first and the LLM cleans the Whisper transcript.
 Options: `--model` (default `medium`), `--name` (output basename).

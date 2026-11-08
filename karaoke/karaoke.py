@@ -8,7 +8,7 @@ Stages (each writes a cached file into WORKDIR; rerun skips if present unless --
   transcribe stable-ts transcribe w/ initial_prompt=keywords -> asr.json
   diff       corrected vs asr -> diffs.json ; optional --adjudicate via LLM -> final.json
   align      stable-ts align final text -> aligned.json (word timings)
-  export     aligned -> subs.json, subs.ass, subs.srt
+  export     aligned -> subs.json, subs.vtt, subs.ass, subs.srt
   all        run everything
 """
 import os
@@ -397,6 +397,13 @@ def stage_export(a, W):
         for i, l in enumerate(lines, 1):
             end = max(l["end"], min(l["start"] + 1.0, lines[i]["start"] if i < len(lines) else 1e9))
             f.write(f"{i}\n{fmt_srt(l['start'])} --> {fmt_srt(end)}\n{l['text']}\n\n")
+    with open(base + ".vtt", "w") as f:  # WebVTT with inline per-word timestamps (YouTube-style)
+        f.write("WEBVTT\n\n")
+        for i, l in enumerate(lines, 1):
+            end = max(l["end"], min(l["start"] + 1.0, lines[i]["start"] if i < len(lines) else 1e9))
+            ws = l["words"] or [{"start": l["start"], "text": l["text"]}]
+            body = ws[0]["text"] + "".join(f"<{fmt_srt(w['start']).replace(',', '.')}> {w['text']}" for w in ws[1:])
+            f.write(f"{fmt_srt(l['start']).replace(',', '.')} --> {fmt_srt(end).replace(',', '.')}\n{body}\n\n")
     with open(base + ".ass", "w") as f:
         f.write("[Script Info]\nScriptType: v4.00+\nPlayResX: 1280\nPlayResY: 720\n\n[V4+ Styles]\n"
                 "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
@@ -415,7 +422,7 @@ def stage_export(a, W):
                 parts.append(f"{{\\kf{max(1, int(round((w['end']-max(w['start'],cur))*100)))}}}{w['text']} ")
                 cur = max(cur, w["end"])
             f.write(f"Dialogue: 0,{fmt_ass(st)},{fmt_ass(en)},Default,,0,0,0,,{''.join(parts).rstrip()}\n")
-    log(f"export: {len(lines)} lines -> {base}.{{json,ass,srt}}")
+    log(f"export: {len(lines)} lines -> {base}.{{json,vtt,ass,srt}}")
     return base + ".json"
 
 
