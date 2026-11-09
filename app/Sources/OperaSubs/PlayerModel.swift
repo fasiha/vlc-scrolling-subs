@@ -65,6 +65,7 @@ final class PlayerModel: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         super.init()
         player.delegate = self
         transcript.onSeek = { [weak self] t in self?.seek(to: t, follow: false) }
+        transcript.onTogglePlay = { [weak self] in self?.togglePlay() }
     }
 
     func openVideo(_ url: URL) {

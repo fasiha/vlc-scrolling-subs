@@ -64,7 +64,7 @@ struct ControlsBar: View {
                     Button(PlayerModel.rateLabel(r)) { model.setRate(r) }
                 }
             }
-            .menuStyle(.borderlessButton).fixedSize().font(.caption).help("Playback speed (⌘+ / ⌘−)")
+            .menuStyle(.borderlessButton).font(.caption.monospacedDigit()).frame(width: 64).help("Playback speed (⌘+ / ⌘−)")
             Button { model.showColumn.toggle() } label: { Image(systemName: "sidebar.right") }
                 .buttonStyle(.borderless).help("Toggle subtitle column (⌘L)")
         }

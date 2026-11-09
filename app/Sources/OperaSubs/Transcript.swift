@@ -12,6 +12,7 @@ final class TranscriptController: NSObject, ObservableObject {
     @Published private(set) var mode: Mode = .follow
 
     var onSeek: ((Double) -> Void)?
+    var onTogglePlay: (() -> Void)?
 
     let scrollView = TranscriptScrollView()
     private let textView: TranscriptTextView
@@ -46,7 +47,7 @@ final class TranscriptController: NSObject, ObservableObject {
         super.init()
 
         textView.isEditable = false
-        textView.isSelectable = false
+        textView.isSelectable = true  // drag selects (see TranscriptTextView.mouseDown); click seeks
         textView.isRichText = false
         textView.drawsBackground = true
         textView.backgroundColor = .windowBackgroundColor
@@ -57,6 +58,12 @@ final class TranscriptController: NSObject, ObservableObject {
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
         textView.onClick = { [weak self] p in self?.click(at: p) }
         textView.onHover = { [weak self] p in self?.hover(at: p) }
+        textView.onSpace = { [weak self] in self?.onTogglePlay?() }
+        textView.onSelectStart = { [weak self] in
+            guard let self else { return }
+            self.hover(at: nil)
+            if self.mode != .free { self.stopAnimation(); self.mode = .free }  // keep text still under the cursor
+        }
 
         scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
@@ -355,6 +362,10 @@ final class TranscriptController: NSObject, ObservableObject {
 final class TranscriptTextView: NSTextView {
     var onClick: ((NSPoint) -> Void)?
     var onHover: ((NSPoint?) -> Void)?
+    var onSelectStart: (() -> Void)?
+    var onSpace: (() -> Void)?
+    /// Pointer travel (points) that turns a click into a selection drag.
+    private static let dragThreshold: CGFloat = 4
     var highlightRect: NSRect? {
         didSet {
             guard oldValue != highlightRect else { return }
@@ -379,7 +390,32 @@ final class TranscriptTextView: NSTextView {
     }
 
     override var isFlipped: Bool { true }
-    override func mouseDown(with event: NSEvent) { onClick?(convert(event.locationInWindow, from: nil)) }
+    /// Once selected, this view is first responder and NSTextView would eat Space (page down)
+    /// before the Play/Pause menu shortcut sees it.
+    override func keyDown(with event: NSEvent) {
+        if event.charactersIgnoringModifiers == " ",
+           event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty { onSpace?(); return }
+        super.keyDown(with: event)
+    }
+    /// Click (no movement) seeks; a drag past `dragThreshold`, or a double/triple click, selects text
+    /// via NSTextView's normal selection tracking. The text holds only subtitle words (timestamps
+    /// are drawn, not stored), so ⌘C copies just the words.
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount > 1 { onSelectStart?(); super.mouseDown(with: event); return }
+        let start = event.locationInWindow
+        while let e = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) {
+            if e.type == .leftMouseUp {
+                setSelectedRange(NSRange(location: 0, length: 0))
+                onClick?(convert(start, from: nil))
+                return
+            }
+            if hypot(e.locationInWindow.x - start.x, e.locationInWindow.y - start.y) > Self.dragThreshold {
+                onSelectStart?()
+                super.mouseDown(with: event)  // tracks the rest of the drag itself
+                return
+            }
+        }
+    }
     override func mouseMoved(with event: NSEvent) { onHover?(convert(event.locationInWindow, from: nil)) }
     override func mouseExited(with event: NSEvent) { onHover?(nil) }
     override func updateTrackingAreas() {
