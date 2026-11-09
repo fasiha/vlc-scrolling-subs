@@ -11,6 +11,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         handleArguments()
+        // Playback shortcuts are bare keys (Space, arrows), which menu key equivalents would steal
+        // from text fields such as the find bar. While editable text has focus, deliver them to it.
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { e in
+            let mods = e.modifierFlags.intersection([.command, .control, .option])
+            guard mods.isEmpty, [" ", "\u{F702}", "\u{F703}"].contains(e.charactersIgnoringModifiers ?? ""),
+                  let tv = e.window?.firstResponder as? NSTextView, tv.isEditable else { return e }
+            tv.keyDown(with: e)
+            return nil
+        }
     }
 
     /// `OperaSubs [--subs FILE] [VIDEO]`
@@ -73,6 +82,14 @@ struct AppCommands: Commands {
             Button("Faster") { model.stepRate(1) }.keyboardShortcut("+")
             Button("Slower") { model.stepRate(-1) }.keyboardShortcut("-")
             Button("Normal Speed") { model.setRate(1) }.keyboardShortcut("0")
+        }
+        CommandGroup(after: .textEditing) {
+            Button("Find in Transcript…") {
+                model.showColumn = true  // the column may need a layout pass to rejoin the window
+                DispatchQueue.main.async { model.transcript.find(.showFindInterface) }
+            }.keyboardShortcut("f")
+            Button("Find Next") { model.transcript.find(.nextMatch) }.keyboardShortcut("g")
+            Button("Find Previous") { model.transcript.find(.previousMatch) }.keyboardShortcut("g", modifiers: [.command, .shift])
         }
         CommandMenu("Subtitles") {
             Toggle("Show Column", isOn: $model.showColumn).keyboardShortcut("l")

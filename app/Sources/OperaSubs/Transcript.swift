@@ -49,6 +49,8 @@ final class TranscriptController: NSObject, ObservableObject {
         textView.isEditable = false
         textView.isSelectable = true  // drag selects (see TranscriptTextView.mouseDown); click seeks
         textView.isRichText = false
+        textView.usesFindBar = true  // ⌘F: NSTextFinder's find bar, shown above the column
+        textView.isIncrementalSearchingEnabled = true
         textView.drawsBackground = true
         textView.backgroundColor = .windowBackgroundColor
         textView.isVerticallyResizable = true
@@ -111,6 +113,15 @@ final class TranscriptController: NSObject, ObservableObject {
         } else if let l = line, l < cues.count {
             styleCurrent(l)
         }
+    }
+
+    /// Runs an NSTextFinder action (show bar, next, previous) on the column.
+    func find(_ action: NSTextFinder.Action) {
+        guard let w = textView.window else { return }
+        w.makeFirstResponder(textView)
+        let item = NSMenuItem()
+        item.tag = action.rawValue
+        textView.performTextFinderAction(item)
     }
 
     func follow(animated: Bool) {
@@ -390,6 +401,11 @@ final class TranscriptTextView: NSTextView {
     }
 
     override var isFlipped: Bool { true }
+    /// Find (and selection) scroll via this; drop to free mode so follow-scroll doesn't yank the match away.
+    override func scrollRangeToVisible(_ range: NSRange) {
+        onSelectStart?()
+        super.scrollRangeToVisible(range)
+    }
     /// Once selected, this view is first responder and NSTextView would eat Space (page down)
     /// before the Play/Pause menu shortcut sees it.
     override func keyDown(with event: NSEvent) {
