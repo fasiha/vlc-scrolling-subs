@@ -69,6 +69,9 @@ final class PlayerModel: NSObject, ObservableObject, VLCMediaPlayerDelegate {
     }
 
     func openVideo(_ url: URL) {
+        // Subtitles opened before any media (subs-first flow) are kept unless a sibling is found;
+        // subtitles belonging to a previous media file are always dropped.
+        let keepSubs = videoURL == nil && subtitleURL != nil
         videoURL = url
         player.media = VLCMedia(url: url)
         player.play()
@@ -79,7 +82,13 @@ final class PlayerModel: NSObject, ObservableObject, VLCMediaPlayerDelegate {
             self.player.currentVideoSubTitleIndex = -1
             self.player.rate = Float(self.rate)
         }
-        if subtitleURL == nil, let sibling = Self.findSiblingSubtitle(for: url) { openSubtitles(sibling) }
+        if let sibling = Self.findSiblingSubtitle(for: url) {
+            openSubtitles(sibling)
+        } else if !keepSubs {
+            cues = []
+            subtitleURL = nil
+            transcript.load([], time: 0)
+        }
     }
 
     func openSubtitles(_ url: URL) {
