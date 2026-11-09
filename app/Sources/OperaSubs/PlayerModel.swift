@@ -30,6 +30,26 @@ final class PlayerModel: NSObject, ObservableObject, VLCMediaPlayerDelegate {
     @Published var fontSize: Double = 18 { didSet { transcript.setFontSize(fontSize) } }
     @Published var showColumn = true
 
+    static let rates: [Double] = [0.5, 0.75, 1, 1.25, 1.5, 2]
+    @Published private(set) var rate: Double = 1
+
+    func setRate(_ r: Double) {
+        // Re-anchor so the extrapolated clock doesn't jump when the multiplier changes.
+        anchorTime = currentTime
+        anchorDate = Date()
+        rate = r
+        player.rate = Float(r)
+    }
+
+    static func rateLabel(_ r: Double) -> String {
+        (r == r.rounded() ? String(Int(r)) : String(r)) + "×"
+    }
+
+    func stepRate(_ dir: Int) {
+        let i = Self.rates.firstIndex(of: rate) ?? Self.rates.firstIndex(of: 1)!
+        setRate(Self.rates[max(0, min(Self.rates.count - 1, i + dir))])
+    }
+
     /// Single source of truth for playback time (see PLAN.md "Playback time").
     private(set) var currentTime: Double = 0
     /// Interpolation anchor: VLC's time updates are coarse (~4 Hz), so we extrapolate between them.
@@ -51,9 +71,12 @@ final class PlayerModel: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         videoURL = url
         player.media = VLCMedia(url: url)
         player.play()
+        player.rate = Float(rate)
         // Disable VLC's own subtitle rendering; the column is the subtitle display.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.player.currentVideoSubTitleIndex = -1
+            guard let self else { return }
+            self.player.currentVideoSubTitleIndex = -1
+            self.player.rate = Float(self.rate)
         }
         if subtitleURL == nil, let sibling = Self.findSiblingSubtitle(for: url) { openSubtitles(sibling) }
     }
@@ -153,6 +176,6 @@ final class PlayerModel: NSObject, ObservableObject, VLCMediaPlayerDelegate {
                 if Date().timeIntervalSince(since) > 3 { pendingSeek = nil }
             } else { pendingPlayingSince = Date() }
         }
-        publish(anchorTime + Date().timeIntervalSince(anchorDate) * Double(player.rate))
+        publish(anchorTime + Date().timeIntervalSince(anchorDate) * rate)
     }
 }

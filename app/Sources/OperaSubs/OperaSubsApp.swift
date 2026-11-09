@@ -66,12 +66,19 @@ struct AppCommands: Commands {
             Button("Forward 5s") { model.skip(5) }.keyboardShortcut(.rightArrow, modifiers: [])
             Button("Back 30s") { model.skip(-30) }.keyboardShortcut(.leftArrow, modifiers: [.shift])
             Button("Forward 30s") { model.skip(30) }.keyboardShortcut(.rightArrow, modifiers: [.shift])
+            Divider()
+            Picker("Speed", selection: Binding(get: { model.rate }, set: { model.setRate($0) })) {
+                ForEach(PlayerModel.rates, id: \.self) { Text(PlayerModel.rateLabel($0)).tag($0) }
+            }
+            Button("Faster") { model.stepRate(1) }.keyboardShortcut("+")
+            Button("Slower") { model.stepRate(-1) }.keyboardShortcut("-")
+            Button("Normal Speed") { model.setRate(1) }.keyboardShortcut("0")
         }
         CommandMenu("Subtitles") {
             Toggle("Show Column", isOn: $model.showColumn).keyboardShortcut("l")
             Divider()
-            Button("Bigger Text") { model.fontSize += 2 }.keyboardShortcut("+")
-            Button("Smaller Text") { model.fontSize = max(10, model.fontSize - 2) }.keyboardShortcut("-")
+            Button("Bigger Text") { model.fontSize += 2 }.keyboardShortcut("+", modifiers: [.command, .option])
+            Button("Smaller Text") { model.fontSize = max(10, model.fontSize - 2) }.keyboardShortcut("-", modifiers: [.command, .option])
         }
     }
 

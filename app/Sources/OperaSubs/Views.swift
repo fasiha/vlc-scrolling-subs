@@ -59,6 +59,12 @@ struct ControlsBar: View {
             .buttonStyle(.borderless)
             TimeSlider(clock: model.clock, scrubbing: $scrubbing)
             Text(format(model.duration)).monospacedDigit().font(.caption)
+            Menu(PlayerModel.rateLabel(model.rate)) {
+                ForEach(PlayerModel.rates, id: \.self) { r in
+                    Button(PlayerModel.rateLabel(r)) { model.setRate(r) }
+                }
+            }
+            .menuStyle(.borderlessButton).fixedSize().font(.caption).help("Playback speed (⌘+ / ⌘−)")
             Button { model.showColumn.toggle() } label: { Image(systemName: "sidebar.right") }
                 .buttonStyle(.borderless).help("Toggle subtitle column (⌘L)")
         }
